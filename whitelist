@@ -1,0 +1,34 @@
+local Whitelist = {
+    {
+        Username = "Bolinho54671",
+        UserId   = 1522105504,
+        HWID     = "d9558d2adc0382792cce97c09d74855a5df863407f6a2a89ec89e245cc6ec067",
+        Role     = "Owner",
+    },
+    {
+        Username = "CoOwnerName",
+        UserId   = 00000001,
+        HWID     = "Paste_HWID_Here",
+        Role     = "Co-Owner",
+    },
+    {
+        Username = "DeveloperName",
+        UserId   = 00000002,
+        HWID     = "Paste_HWID_Here",
+        Role     = "Developer",
+    },
+    {
+        Username = "TesterName",
+        UserId   = 00000003,
+        HWID     = "Paste_HWID_Here",
+        Role     = "Tester",
+    },
+    {
+        Username = "PremiumName",
+        UserId   = 00000004,
+        HWID     = "Paste_HWID_Here",
+        Role     = "Premium",
+    },
+}
+
+return Whitelist
