@@ -1,0 +1,607 @@
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Icons = loadstring(game:HttpGet("https://raw.githubusercontent.com/latte-soft/lucide-roblox/refs/heads/master/lib/Icons.luau"))()
+
+local function Create(className, properties, attributes)
+    local instance = Instance.new(className)
+    for k, v in pairs(properties) do instance[k] = v end
+    if attributes then
+        for k, v in pairs(attributes) do instance:SetAttribute(k, v) end
+    end
+return instance
+end
+
+local function ApplyIcon(imageObj, iconName)
+    local icons48 = Icons["48px"]
+    local found = icons48[iconName]
+    if not found then
+        for k, v in pairs(icons48) do
+            if string.lower(k) == string.lower(iconName) then found = v break end
+        end
+end
+if found then
+    imageObj.Image = "rbxassetid://" .. tostring(found[1])
+    imageObj.ImageRectSize = Vector2.new(found[2][1], found[2][2])
+    imageObj.ImageRectOffset = Vector2.new(found[3][1], found[3][2])
+else
+imageObj.Image = ""
+end
+end
+
+local Theme = {
+    BgColor = Color3.fromRGB(15, 15, 20), BgTrans = 0.4,
+    GlossColor = Color3.fromRGB(255, 255, 255),
+    IconMuted = Color3.fromRGB(140, 140, 150), IconActive = Color3.fromRGB(255, 255, 255),
+    Accent = Color3.fromRGB(150, 100, 255),
+    ElementBg = Color3.fromRGB(25, 25, 30), ElementStroke = Color3.fromRGB(60, 60, 70)
+}
+
+local ThemeLibrary = {
+    ["Purple Glass"] = { Bg = Color3.fromRGB(15, 15, 20), El = Color3.fromRGB(25, 25, 30), Ac = Color3.fromRGB(150, 100, 255) } ,
+    ["Standard"] = { Bg = Color3.fromRGB(10, 10, 10), El = Color3.fromRGB(20, 20, 20), Ac = Color3.fromRGB(255, 255, 255) } ,
+    ["BlackHole"] = { Bg = Color3.fromRGB(5, 5, 5), El = Color3.fromRGB(12, 12, 12), Ac = Color3.fromRGB(180, 50, 255) } ,
+    ["BlueBerry"] = { Bg = Color3.fromRGB(15, 20, 35), El = Color3.fromRGB(25, 30, 45), Ac = Color3.fromRGB(80, 150, 255) } ,
+    ["Ocean"] = { Bg = Color3.fromRGB(10, 25, 30), El = Color3.fromRGB(15, 35, 45), Ac = Color3.fromRGB(0, 220, 200) } ,
+    ["Glass"] = { Bg = Color3.fromRGB(25, 30, 35), El = Color3.fromRGB(35, 40, 45), Ac = Color3.fromRGB(200, 230, 255) } ,
+    ["Obsidian"] = { Bg = Color3.fromRGB(15, 10, 20), El = Color3.fromRGB(25, 15, 30), Ac = Color3.fromRGB(200, 80, 255) } ,
+    ["Banana"] = { Bg = Color3.fromRGB(25, 25, 20), El = Color3.fromRGB(35, 35, 25), Ac = Color3.fromRGB(255, 220, 50) }
+}
+
+local THICKNESS = 42
+local ANIM_INFO = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local DEFAULT_CORNER = 1
+
+local function ApplyGlassEffect(parent)
+    Create("UIGradient", {
+            Rotation = 90, Color = ColorSequence.new( { ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 180, 200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 25)) } ),
+            Transparency = NumberSequence.new( { NumberSequenceKeypoint.new(0, 0.75), NumberSequenceKeypoint.new(1, 0.2) } ), Parent = parent
+        } )
+Create("ImageLabel", {
+        Name = "GlassTexture", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Image = "rbxassetid://17677620297",
+        ImageTransparency = 0.88, ScaleType = Enum.ScaleType.Crop, ZIndex = 0, Parent = parent
+    } )
+end
+
+local function ApplyAccentGlass(parent)
+    parent.BackgroundColor3 = Theme.Accent
+    parent.BackgroundTransparency = 0.2
+    Create("UIGradient", { Rotation = 45, Transparency = NumberSequence.new( { NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 0.5) } ), Parent = parent } )
+    Create("ImageLabel", { Name = "GlassTexture", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Image = "rbxassetid://17677620297", ImageTransparency = 0.85, ScaleType = Enum.ScaleType.Crop, ZIndex = 0, Parent = parent } )
+end
+
+local Standard = { }
+
+function Standard:CreateSidebar(options)
+    local logoId = options.Logo or "rbxassetid://85140863077888"
+
+    local parentGui = RunService:IsStudio() and game.Players.LocalPlayer:WaitForChild("PlayerGui") or (gethui and gethui() or CoreGui)
+    if parentGui:FindFirstChild("GlassMorphUI") then parentGui.GlassMorphUI:Destroy() end
+
+    local ScreenGui = Create("ScreenGui", { Name = "GlassMorphUI", Parent = parentGui, IgnoreGuiInset = true } )
+
+    local SidebarAPI = {
+        Tabs = { } , ActiveTab = nil, IsHorizontal = false, SnapToGrid = false, GridSize = 40, CurrentCorner = DEFAULT_CORNER,
+        Toggles = { } , Sliders = { } , Backgrounds = { } , ElementBackgrounds = { } , Accents = { } , ToggleStyle = "Switch",
+        ScreenGui = ScreenGui
+    }
+
+local function SetAllCorners(radius)
+    SidebarAPI.CurrentCorner = radius
+    for _, v in pairs(ScreenGui:GetDescendants()) do
+        if v:IsA("UICorner") and not v:GetAttribute("KeepRound") and not v:GetAttribute("IsDiamond") then
+            TweenService:Create(v, TweenInfo.new(0.3), { CornerRadius = UDim.new(0, radius) } ):Play()
+        end
+end
+end
+
+local GridOverlay = Create("Frame", { Name = "GridOverlay", Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, ZIndex = 0 } )
+local function RedrawGrid()
+    GridOverlay:ClearAllChildren()
+    local vp = workspace.CurrentCamera.ViewportSize
+    for x = 0, vp.X, SidebarAPI.GridSize do Create("Frame", { Position = UDim2.new(0, x, 0, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.96, Parent = GridOverlay } ) end
+    for y = 0, vp.Y, SidebarAPI.GridSize do Create("Frame", { Position = UDim2.new(0, 0, 0, y), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.96, Parent = GridOverlay } ) end
+end
+RedrawGrid(); workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(RedrawGrid)
+
+local function MakeDraggable(dragArea, moveTarget, isSidebar)
+    local dragging, dragInput, dragStart, startPos
+    dragArea.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; dragStart = input.Position; startPos = moveTarget.Position
+                if SidebarAPI.SnapToGrid then GridOverlay.Visible = true end
+                local conn; conn = input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then dragging = false; GridOverlay.Visible = false; if conn then conn:Disconnect() end end
+                    end)
+        end
+end)
+dragArea.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local newX, newY = startPos.X.Offset + (input.Position.X - dragStart.X), startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+            if SidebarAPI.SnapToGrid then
+                newX = math.floor(newX / SidebarAPI.GridSize + 0.5) * SidebarAPI.GridSize
+                newY = math.floor(newY / SidebarAPI.GridSize + 0.5) * SidebarAPI.GridSize
+            end
+        moveTarget.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+
+        if isSidebar then
+            local vp = workspace.CurrentCamera.ViewportSize; local curX, curY = moveTarget.AbsolutePosition.X, moveTarget.AbsolutePosition.Y
+            local threshold = 120; local shouldBeHoriz = SidebarAPI.IsHorizontal
+            if curY < threshold or (vp.Y - curY) < threshold then shouldBeHoriz = true
+            elseif curX < threshold or (vp.X - curX) < threshold then shouldBeHoriz = false end
+            if shouldBeHoriz ~= SidebarAPI.IsHorizontal then SidebarAPI.IsHorizontal = shouldBeHoriz; SidebarAPI.UpdateLayout() end
+        end
+end
+end)
+end
+
+local function BuildElementsAPI(ParentFrame)
+    local Elements = { }
+
+    function Elements:AddLabel(text)
+        local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 20), BackgroundTransparency = 1, Parent = ParentFrame } )
+        Create("TextLabel", { Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 4, 0, 0), BackgroundTransparency = 1, Text = text, TextColor3 = Theme.IconMuted, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Container } )
+    end
+
+function Elements:AddDivider()
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 12), BackgroundTransparency = 1, Parent = ParentFrame } )
+    Create("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = Theme.ElementStroke, BorderSizePixel = 0, Parent = Container } )
+end
+
+function Elements:AddButton(text, callback)
+    local Btn = Create("TextButton", { Size = UDim2.new(1, - 24, 0, 36), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.GothamMedium, TextSize = 13, AutoButtonColor = false, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Btn)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Btn } )
+    Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Btn } )
+
+    Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), { BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.2 } ):Play() end)
+    Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), { BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5 } ):Play() end)
+    Btn.MouseButton1Click:Connect(function()
+            TweenService:Create(Btn, TweenInfo.new(0.1), { TextSize = 11 } ):Play()
+            task.wait(0.1)
+            TweenService:Create(Btn, TweenInfo.new(0.1), { TextSize = 13 } ):Play()
+            if callback then callback() end
+        end)
+end
+
+function Elements:AddInput(text, placeholder, callback)
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 40), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } )
+    Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+
+    Create("TextLabel", { Size = UDim2.new(0.4, 0, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Container } )
+
+    local InputBox = Create("TextBox", { Size = UDim2.new(0.6, - 24, 0, 26), Position = UDim2.new(0.4, 12, 0.5, - 13), BackgroundColor3 = Theme.BgColor, Text = "", PlaceholderText = placeholder, TextColor3 = Color3.new(1, 1, 1), PlaceholderColor3 = Theme.IconMuted, Font = Enum.Font.Gotham, TextSize = 12, Parent = Container } )
+    table.insert(SidebarAPI.Backgrounds, InputBox)
+    Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = InputBox } )
+    Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = InputBox } )
+
+    InputBox.FocusLost:Connect(function() if callback then callback(InputBox.Text) end end)
+end
+
+function Elements:AddToggle(text, default, callback)
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 40), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } )
+    Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+    Create("TextLabel", { Size = UDim2.new(1, - 60, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Container } )
+
+    local ToggleBg = Create("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, - 12, 0.5, 0), Text = "", AutoButtonColor = false, Parent = Container } )
+    local BgCorner = Create("UICorner", { Parent = ToggleBg } ); local BgStroke = Create("UIStroke", { Color = Theme.IconMuted, Transparency = 0.5, Parent = ToggleBg } )
+    local Knob = Create("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.2, Rotation = 45, Parent = ToggleBg } , { IsDiamond = true } )
+    Create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = Knob } , { KeepRound = true } )
+
+    local isOn = default
+    local ToggleData = {
+        UpdateVisuals = function(instant)
+            local style = SidebarAPI.ToggleStyle; local tInfo = instant and TweenInfo.new(0) or TweenInfo.new(0.35, Enum.EasingStyle.Quint)
+            if style == "Switch" then
+                BgCorner.CornerRadius = UDim.new(1, 0); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+                TweenService:Create(ToggleBg, tInfo, { Size = UDim2.new(0, 42, 0, 20), BackgroundColor3 = isOn and Theme.Accent or Theme.BgColor, BackgroundTransparency = isOn and 0.2 or 0 } ):Play()
+                TweenService:Create(BgStroke, tInfo, { Color = isOn and Theme.Accent or Theme.IconMuted } ):Play()
+                TweenService:Create(Knob, tInfo, { Size = UDim2.new(0, 10, 0, 10), Position = UDim2.new(0, isOn and 32 or 10, 0.5, 0), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0 } ):Play()
+            elseif style == "Checkbox" then
+                BgCorner.CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+                TweenService:Create(ToggleBg, tInfo, { Size = UDim2.new(0, 22, 0, 22), BackgroundColor3 = Theme.BgColor, BackgroundTransparency = 0 } ):Play()
+                TweenService:Create(BgStroke, tInfo, { Color = isOn and Theme.Accent or Theme.IconMuted } ):Play()
+                TweenService:Create(Knob, tInfo, { Size = isOn and UDim2.new(0, 12, 0, 12) or UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundColor3 = Theme.Accent, BackgroundTransparency = 0.2 } ):Play()
+            elseif style == "Minimal" then
+                BgCorner.CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+                TweenService:Create(ToggleBg, tInfo, { Size = UDim2.new(0, 36, 0, 6), BackgroundColor3 = Theme.BgColor, BackgroundTransparency = 0 } ):Play()
+                TweenService:Create(BgStroke, tInfo, { Transparency = 1 } ):Play()
+                TweenService:Create(Knob, tInfo, { Size = UDim2.new(0, 10, 0, 10), Position = UDim2.new(0, isOn and 36 or 0, 0.5, 0), BackgroundTransparency = 0.2, BackgroundColor3 = isOn and Theme.Accent or Color3.fromRGB(150, 150, 150) } ):Play()
+            end
+    end
+}
+ToggleData.UpdateVisuals(true); table.insert(SidebarAPI.Toggles, ToggleData)
+
+ToggleBg.MouseButton1Click:Connect(function() isOn = not isOn; ToggleData.UpdateVisuals(false); if callback then callback(isOn) end end)
+end
+
+function Elements:AddSlider(text, min, max, default, callback)
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 52), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } ); Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+
+    Create("TextLabel", { Size = UDim2.new(1, - 20, 0, 20), Position = UDim2.new(0, 12, 0, 6), BackgroundTransparency = 1, Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Container } )
+    local ValueLabel = Create("TextLabel", { Size = UDim2.new(0, 50, 0, 20), Position = UDim2.new(1, - 62, 0, 6), BackgroundTransparency = 1, Text = tostring(default), TextColor3 = Theme.Accent, Font = Enum.Font.GothamBold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Right, Parent = Container } )
+    table.insert(SidebarAPI.Accents, ValueLabel)
+
+    local Track = Create("TextButton", { Size = UDim2.new(1, - 24, 0, 6), Position = UDim2.new(0, 12, 1, - 16), BackgroundColor3 = Theme.BgColor, Text = "", AutoButtonColor = false, Parent = Container } )
+    Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Track } , { KeepRound = true } )
+    local Fill = Create("Frame", { Size = UDim2.new(math.clamp((default - min) / (max - min), 0, 1), 0, 1, 0), Parent = Track } )
+    ApplyAccentGlass(Fill); Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Fill } , { KeepRound = true } )
+    local Knob = Create("Frame", { Size = UDim2.new(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.2, Rotation = 45, Parent = Fill } , { IsDiamond = true } )
+    Create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = Knob } , { KeepRound = true } ); Create("UIStroke", { Color = Color3.new(0, 0, 0), Transparency = 0.8, Parent = Knob } )
+
+    table.insert(SidebarAPI.Sliders, { Fill = Fill, ValueLabel = ValueLabel, Track = Track } )
+
+    local dragging = false
+    local function update(input)
+        local percent = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+        local value = math.floor(min + ((max - min) * percent))
+        ValueLabel.Text = tostring(value); TweenService:Create(Fill, TweenInfo.new(0.1), { Size = UDim2.new(percent, 0, 1, 0) } ):Play()
+        if callback then callback(value) end
+    end
+
+Track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; update(input) end end)
+UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then update(input) end end)
+end
+
+function Elements:AddDropdown(text, options, default, callback)
+    local DropHeight = 40
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, DropHeight), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, ClipsDescendants = true, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } ); Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+
+    local Header = Create("TextButton", { Size = UDim2.new(1, 0, 0, DropHeight), BackgroundTransparency = 1, Text = "", Parent = Container } )
+    Create("TextLabel", { Size = UDim2.new(1, - 40, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = text .. " : " .. default, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Header } )
+    local Icon = Create("ImageLabel", { Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(1, - 28, 0.5, - 8), BackgroundTransparency = 1, ImageColor3 = Theme.IconMuted, Parent = Header } ); ApplyIcon(Icon, "chevron-down")
+
+    local ListLayout = Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = Container } )
+    local isOpen = false
+    Header.MouseButton1Click:Connect(function()
+            isOpen = not isOpen
+            local targetHeight = isOpen and (DropHeight + (#options * 32)) or DropHeight
+            TweenService:Create(Container, TweenInfo.new(0.35, Enum.EasingStyle.Quint), { Size = UDim2.new(1, - 24, 0, targetHeight) } ):Play()
+            TweenService:Create(Icon, TweenInfo.new(0.35), { Rotation = isOpen and 180 or 0 } ):Play()
+        end)
+
+for _, opt in ipairs(options) do
+    local OptBtn = Create("TextButton", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, Text = opt, TextColor3 = Theme.IconMuted, Font = Enum.Font.Gotham, TextSize = 12, Parent = Container } )
+    OptBtn.MouseButton1Click:Connect(function()
+            Header:FindFirstChildOfClass("TextLabel").Text = text .. " : " .. opt; isOpen = false
+            TweenService:Create(Container, TweenInfo.new(0.35, Enum.EasingStyle.Quint), { Size = UDim2.new(1, - 24, 0, DropHeight) } ):Play()
+            TweenService:Create(Icon, TweenInfo.new(0.35), { Rotation = 0 } ):Play()
+            if callback then callback(opt) end
+        end)
+OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.2), { TextColor3 = Theme.Accent } ):Play() end)
+OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.2), { TextColor3 = Theme.IconMuted } ):Play() end)
+table.insert(SidebarAPI.Accents, OptBtn)
+end
+end
+
+function Elements:AddMultiDropdown(text, options, defaultList, callback)
+    local selected = defaultList or { }
+    local function isSelected(opt) for _, v in ipairs(selected) do if v == opt then return true end end return false end
+
+    local DropHeight = 40
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, DropHeight), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, ClipsDescendants = true, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } ); Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+
+    local Header = Create("TextButton", { Size = UDim2.new(1, 0, 0, DropHeight), BackgroundTransparency = 1, Text = "", Parent = Container } )
+    local TitleLabel = Create("TextLabel", { Size = UDim2.new(1, - 40, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = text .. " (" .. #selected .. ")", TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Header } )
+    local Icon = Create("ImageLabel", { Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(1, - 28, 0.5, - 8), BackgroundTransparency = 1, ImageColor3 = Theme.IconMuted, Parent = Header } ); ApplyIcon(Icon, "list")
+
+    local ListLayout = Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = Container } )
+    local isOpen = false
+    Header.MouseButton1Click:Connect(function()
+            isOpen = not isOpen
+            local targetHeight = isOpen and (DropHeight + (#options * 32)) or DropHeight
+            TweenService:Create(Container, TweenInfo.new(0.35, Enum.EasingStyle.Quint), { Size = UDim2.new(1, - 24, 0, targetHeight) } ):Play()
+        end)
+
+for _, opt in ipairs(options) do
+    local OptBtn = Create("TextButton", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, Text = opt, TextColor3 = isSelected(opt) and Theme.Accent or Theme.IconMuted, Font = Enum.Font.Gotham, TextSize = 12, Parent = Container } )
+    table.insert(SidebarAPI.Accents, OptBtn)
+    OptBtn.MouseButton1Click:Connect(function()
+            if isSelected(opt) then
+                for i, v in ipairs(selected) do if v == opt then table.remove(selected, i) break end end
+                TweenService:Create(OptBtn, TweenInfo.new(0.2), { TextColor3 = Theme.IconMuted } ):Play()
+            else
+            table.insert(selected, opt)
+            TweenService:Create(OptBtn, TweenInfo.new(0.2), { TextColor3 = Theme.Accent } ):Play()
+        end
+    TitleLabel.Text = text .. " (" .. #selected .. ")"
+    if callback then callback(selected) end
+end)
+end
+end
+
+function Elements:AddColorPicker(text, defaultColor, callback)
+    local Container = Create("Frame", { Size = UDim2.new(1, - 24, 0, 40), BackgroundColor3 = Theme.ElementBg, BackgroundTransparency = 0.5, ClipsDescendants = true, Parent = ParentFrame } )
+    table.insert(SidebarAPI.ElementBackgrounds, Container)
+    Create("UICorner", { CornerRadius = UDim.new(0, SidebarAPI.CurrentCorner), Parent = Container } ); Create("UIStroke", { Color = Theme.ElementStroke, Thickness = 1, Parent = Container } )
+
+    local Header = Create("TextButton", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, Text = "", Parent = Container } )
+    Create("TextLabel", { Size = UDim2.new(1, - 60, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = Header } )
+
+    local Preview = Create("Frame", { Size = UDim2.new(0, 24, 0, 24), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, - 12, 0.5, 0), BackgroundColor3 = defaultColor, Parent = Header } )
+    Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Preview } ); Create("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.5, Parent = Preview } )
+
+    local isOpen = false
+    Header.MouseButton1Click:Connect(function()
+            isOpen = not isOpen
+            TweenService:Create(Container, TweenInfo.new(0.35, Enum.EasingStyle.Quint), { Size = UDim2.new(1, - 24, 0, isOpen and 140 or 40) } ):Play()
+        end)
+
+local SliderContainer = Create("Frame", { Size = UDim2.new(1, 0, 0, 100), Position = UDim2.new(0, 0, 0, 40), BackgroundTransparency = 1, Parent = Container } )
+local currentColor = defaultColor
+
+local function createColorSlider(yPos, colorName, barColor, initialVal)
+    local Track = Create("TextButton", { Size = UDim2.new(1, - 24, 0, 8), Position = UDim2.new(0, 12, 0, yPos), BackgroundColor3 = Theme.BgColor, Text = "", AutoButtonColor = false, Parent = SliderContainer } )
+    Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Track } )
+    local Fill = Create("Frame", { Size = UDim2.new(initialVal, 0, 1, 0), BackgroundColor3 = barColor, Parent = Track } )
+    Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Fill } )
+    local Knob = Create("Frame", { Size = UDim2.new(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = Color3.new(1, 1, 1), Parent = Fill } )
+    Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Knob } )
+
+    local dragging = false
+    Track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end end)
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+
+    return { Track = Track, Fill = Fill, IsDragging = function() return dragging end }
+end
+
+local R = createColorSlider(15, "R", Color3.new(1, 0.2, 0.2), defaultColor.R)
+local G = createColorSlider(45, "G", Color3.new(0.2, 1, 0.2), defaultColor.G)
+local B = createColorSlider(75, "B", Color3.new(0.2, 0.5, 1), defaultColor.B)
+
+UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local updated = false
+            for idx, slider in ipairs( { R, G, B } ) do
+                if slider.IsDragging() then
+                    local percent = math.clamp((input.Position.X - slider.Track.AbsolutePosition.X) / slider.Track.AbsoluteSize.X, 0, 1)
+                    TweenService:Create(slider.Fill, TweenInfo.new(0.1), { Size = UDim2.new(percent, 0, 1, 0) } ):Play()
+                    updated = true
+                end
+        end
+    if updated then
+        currentColor = Color3.new(R.Fill.Size.X.Scale, G.Fill.Size.X.Scale, B.Fill.Size.X.Scale)
+        Preview.BackgroundColor3 = currentColor
+        if callback then callback(currentColor) end
+    end
+end
+end)
+end
+
+return Elements
+end
+
+local ContentWindow = Create("Frame", {
+        Name = "ContentWindow", Parent = ScreenGui, Size = UDim2.new(0, 400, 0, 300),
+        Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Theme.BgColor, BackgroundTransparency = Theme.BgTrans, BorderSizePixel = 0, Visible = false
+    } )
+ApplyGlassEffect(ContentWindow); table.insert(SidebarAPI.Backgrounds, ContentWindow)
+Create("UICorner", { CornerRadius = UDim.new(0, DEFAULT_CORNER), Parent = ContentWindow } )
+Create("UIStroke", { Thickness = 1, Color = Color3.fromRGB(255, 255, 255), Transparency = 0.75, Parent = ContentWindow } )
+
+local Topbar = Create("Frame", { Name = "Topbar", Size = UDim2.new(1, 0, 0, 38), BackgroundTransparency = 1, Parent = ContentWindow, Active = true } )
+local TopbarIcon = Create("ImageLabel", { Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(0, 14, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), BackgroundTransparency = 1, ImageColor3 = Theme.IconActive, Parent = Topbar } )
+local TopbarTitle = Create("TextLabel", { Size = UDim2.new(1, - 45, 1, 0), Position = UDim2.new(0, 42, 0, 0), BackgroundTransparency = 1, Text = "Tab Name", TextColor3 = Theme.IconActive, Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = Topbar } )
+Create("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.IconMuted, BackgroundTransparency = 0.8, BorderSizePixel = 0, Parent = Topbar } )
+
+local PageContainer = Create("ScrollingFrame", {
+        Name = "PageContainer", Size = UDim2.new(1, 0, 1, - 39), Position = UDim2.new(0, 0, 0, 39),
+        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+        ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0, 0, 0, 0), Parent = ContentWindow
+    } )
+MakeDraggable(Topbar, ContentWindow, false)
+
+local Sidebar = Create("Frame", { Name = "Sidebar", Parent = ScreenGui, BackgroundColor3 = Theme.BgColor, BackgroundTransparency = Theme.BgTrans, BorderSizePixel = 0 } )
+ApplyGlassEffect(Sidebar); table.insert(SidebarAPI.Backgrounds, Sidebar)
+Create("UICorner", { CornerRadius = UDim.new(0, DEFAULT_CORNER), Parent = Sidebar } )
+
+local GlossFrame = Create("Frame", { Name = "Gloss", Parent = Sidebar, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.GlossColor, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 2 } )
+Create("UICorner", { CornerRadius = UDim.new(0, DEFAULT_CORNER), Parent = GlossFrame } )
+Create("UIGradient", { Rotation = 45, Parent = GlossFrame, Transparency = NumberSequence.new( { NumberSequenceKeypoint.new(0, 0.92), NumberSequenceKeypoint.new(0.4, 0.98), NumberSequenceKeypoint.new(1, 1) } ) } )
+Create("UIStroke", { Thickness = 1, Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7, Parent = Sidebar } )
+
+local ContentHolder = Create("Frame", { Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, Parent = Sidebar } )
+local Logo = Create("ImageLabel", { Size = UDim2.new(0, 24, 0, 24), BackgroundTransparency = 1, Image = logoId, ImageColor3 = Theme.IconActive, Parent = ContentHolder, AnchorPoint = Vector2.new(0.5, 0.5) } )
+local Divider = Create("Frame", { BackgroundColor3 = Theme.IconMuted, BackgroundTransparency = 0.8, BorderSizePixel = 0, Parent = ContentHolder, AnchorPoint = Vector2.new(0.5, 0.5) } )
+local TabContainer = Create("Frame", { BackgroundTransparency = 1, Parent = ContentHolder } )
+local Layout = Create("UIListLayout", { HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), Parent = TabContainer } )
+
+function SidebarAPI.UpdateLayout()
+    local numTabs = #SidebarAPI.Tabs
+    local contentLen = (numTabs * 36) + (numTabs > 1 and ((numTabs - 1) * 6) or 0)
+    if SidebarAPI.IsHorizontal then
+        Layout.FillDirection = Enum.FillDirection.Horizontal
+        Sidebar.Size = UDim2.new(0, contentLen + THICKNESS + 20, 0, THICKNESS)
+        Logo.Position = UDim2.new(0, THICKNESS / 2 + 4, 0.5, 0)
+        Divider.Size = UDim2.new(0, 1, 0, 16); Divider.Position = UDim2.new(0, THICKNESS + 6, 0.5, 0)
+        TabContainer.Size = UDim2.new(1, - (THICKNESS + 12), 1, 0); TabContainer.Position = UDim2.new(0, THICKNESS + 12, 0, 0)
+    else
+    Layout.FillDirection = Enum.FillDirection.Vertical
+    Sidebar.Size = UDim2.new(0, THICKNESS, 0, contentLen + THICKNESS + 20)
+    Logo.Position = UDim2.new(0.5, 0, 0, THICKNESS / 2 + 4)
+    Divider.Size = UDim2.new(0, 16, 0, 1); Divider.Position = UDim2.new(0.5, 0, 0, THICKNESS + 6)
+    TabContainer.Size = UDim2.new(1, 0, 1, - (THICKNESS + 12)); TabContainer.Position = UDim2.new(0, 0, 0, THICKNESS + 12)
+end
+
+for _, tab in pairs(SidebarAPI.Tabs) do
+    if SidebarAPI.IsHorizontal then
+        tab.Btn.Size = UDim2.new(0, 36, 1, 0); tab.Indicator.AnchorPoint = Vector2.new(0.5, 1); tab.Indicator.Position = UDim2.new(0.5, 0, 1, - 2)
+        tab.Indicator.Size = tab.IsActive and UDim2.new(0, 16, 0, 2) or UDim2.new(0, 0, 0, 2)
+    else
+    tab.Btn.Size = UDim2.new(1, 0, 0, 36); tab.Indicator.AnchorPoint = Vector2.new(0, 0.5); tab.Indicator.Position = UDim2.new(0, 2, 0.5, 0)
+    tab.Indicator.Size = tab.IsActive and UDim2.new(0, 2, 0, 16) or UDim2.new(0, 2, 0, 0)
+end
+end
+end
+MakeDraggable(Sidebar, Sidebar, true)
+
+function SidebarAPI:AddTab(title, iconName)
+    local BtnContainer = Create("TextButton", { BackgroundTransparency = 1, Text = "", Parent = TabContainer } )
+    local Indicator = Create("Frame", { BorderSizePixel = 0, Parent = BtnContainer } )
+    ApplyAccentGlass(Indicator); Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Indicator } , { KeepRound = true } )
+
+    local Icon = Create("ImageLabel", { Size = UDim2.new(0, 18, 0, 18), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 1, ImageColor3 = Theme.IconMuted, Parent = BtnContainer } )
+    ApplyIcon(Icon, iconName)
+
+    local TabPage = Create("Frame", { Name = title .. "_Page", Parent = PageContainer, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false } )
+    local PageLayout = Create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = TabPage } )
+    Create("UIPadding", { PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12), Parent = TabPage } )
+
+    PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() PageContainer.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 24) end)
+
+    local TabData = { Btn = BtnContainer, Indicator = Indicator, Icon = Icon, Page = TabPage, Title = title, IconName = iconName, IsActive = false }
+    table.insert(self.Tabs, TabData); self.UpdateLayout()
+
+    BtnContainer.MouseEnter:Connect(function() if not TabData.IsActive then TweenService:Create(Icon, TweenInfo.new(0.2), { ImageColor3 = Color3.fromRGB(200, 200, 210) } ):Play() end end)
+    BtnContainer.MouseLeave:Connect(function() if not TabData.IsActive then TweenService:Create(Icon, TweenInfo.new(0.2), { ImageColor3 = Theme.IconMuted } ):Play() end end)
+
+    BtnContainer.MouseButton1Click:Connect(function()
+            if self.ActiveTab == TabData then
+                TabData.IsActive = false; self.ActiveTab = nil
+                TweenService:Create(Icon, ANIM_INFO, { ImageColor3 = Theme.IconMuted } ):Play()
+                local offSize = self.IsHorizontal and UDim2.new(0, 0, 0, 2) or UDim2.new(0, 2, 0, 0)
+                TweenService:Create(Indicator, ANIM_INFO, { Size = offSize } ):Play()
+                TabPage.Visible = false; ContentWindow.Visible = false
+                return
+            end
+        if self.ActiveTab then
+            self.ActiveTab.IsActive = false
+            TweenService:Create(self.ActiveTab.Icon, ANIM_INFO, { ImageColor3 = Theme.IconMuted } ):Play()
+            local offSize = self.IsHorizontal and UDim2.new(0, 0, 0, 2) or UDim2.new(0, 2, 0, 0)
+            TweenService:Create(self.ActiveTab.Indicator, ANIM_INFO, { Size = offSize } ):Play()
+            self.ActiveTab.Page.Visible = false
+        end
+
+    self.ActiveTab = TabData; TabData.IsActive = true
+    TweenService:Create(Icon, ANIM_INFO, { ImageColor3 = Theme.IconActive } ):Play()
+    local onSize = self.IsHorizontal and UDim2.new(0, 16, 0, 2) or UDim2.new(0, 2, 0, 16)
+    TweenService:Create(Indicator, ANIM_INFO, { Size = onSize } ):Play()
+
+    TopbarTitle.Text = TabData.Title; ApplyIcon(TopbarIcon, TabData.IconName)
+    TabPage.Visible = true; ContentWindow.Visible = true
+end)
+
+return BuildElementsAPI(TabPage)
+end
+
+function SidebarAPI:AddFloatingWindow(title, sizeX, sizeY)
+    local Win = Create("Frame", {
+            Name = title .. "_Win", Parent = ScreenGui, Size = UDim2.new(0, sizeX or 300, 0, sizeY or 200),
+            Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Theme.BgColor, BackgroundTransparency = Theme.BgTrans, BorderSizePixel = 0, ClipsDescendants = true
+        } )
+ApplyGlassEffect(Win); table.insert(SidebarAPI.Backgrounds, Win)
+Create("UICorner", { CornerRadius = UDim.new(0, DEFAULT_CORNER), Parent = Win } )
+Create("UIStroke", { Thickness = 1, Color = Color3.fromRGB(255, 255, 255), Transparency = 0.75, Parent = Win } )
+
+local WinTop = Create("Frame", { Name = "Topbar", Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Parent = Win, Active = true } )
+Create("TextLabel", { Size = UDim2.new(1, - 60, 1, 0), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, Text = title, TextColor3 = Theme.IconActive, Font = Enum.Font.GothamMedium, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = WinTop } )
+Create("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.IconMuted, BackgroundTransparency = 0.8, BorderSizePixel = 0, Parent = WinTop } )
+
+local MinBtn = Create("TextButton", { Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, - 50, 0.5, - 10), BackgroundTransparency = 1, Text = "-", TextColor3 = Theme.IconActive, Font = Enum.Font.GothamMedium, TextSize = 18, Parent = WinTop } )
+local CloseBtn = Create("TextButton", { Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, - 25, 0.5, - 10), BackgroundTransparency = 1, Text = "X", TextColor3 = Color3.fromRGB(255, 80, 80), Font = Enum.Font.GothamMedium, TextSize = 14, Parent = WinTop } )
+
+local WinContent = Create("ScrollingFrame", {
+        Size = UDim2.new(1, 0, 1, - 31), Position = UDim2.new(0, 0, 0, 31), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0, 0, 0, 0), Parent = Win
+    } )
+local Layout = Create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = WinContent } )
+Create("UIPadding", { PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10), Parent = WinContent } )
+Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() WinContent.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 20) end)
+
+MakeDraggable(WinTop, Win, false)
+
+local isMinimized = false; local fullSize = Win.Size
+MinBtn.MouseButton1Click:Connect(function()
+        isMinimized = not isMinimized
+        TweenService:Create(Win, TweenInfo.new(0.3, Enum.EasingStyle.Quint), { Size = isMinimized and UDim2.new(0, sizeX or 300, 0, 30) or fullSize } ):Play()
+    end)
+CloseBtn.MouseButton1Click:Connect(function() Win.Visible = false end)
+
+return BuildElementsAPI(WinContent)
+end
+
+function SidebarAPI:AddFloatingButton(iconName, callback)
+    local FloatBtn = Create("TextButton", {
+            Parent = ScreenGui, Size = UDim2.new(0, 42, 0, 42), Position = UDim2.new(0.8, 0, 0.8, 0),
+            BackgroundColor3 = Theme.BgColor, BackgroundTransparency = Theme.BgTrans, Text = "", AutoButtonColor = false
+        } )
+ApplyGlassEffect(FloatBtn); table.insert(SidebarAPI.Backgrounds, FloatBtn)
+Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = FloatBtn } , { KeepRound = true } )
+Create("UIStroke", { Thickness = 1, Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7, Parent = FloatBtn } )
+
+local Icon = Create("ImageLabel", { Size = UDim2.new(0, 20, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 1, ImageColor3 = Theme.IconActive, Parent = FloatBtn } )
+ApplyIcon(Icon, iconName)
+
+local dragging = false; local dragStart = nil; local startPos = nil
+FloatBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; dragStart = input.Position; startPos = FloatBtn.Position
+        end
+end)
+UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            FloatBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+end)
+FloatBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            if (input.Position - dragStart).Magnitude < 5 then
+                TweenService:Create(Icon, TweenInfo.new(0.1), { Size = UDim2.new(0, 16, 0, 16) } ):Play()
+                task.wait(0.1)
+                TweenService:Create(Icon, TweenInfo.new(0.1), { Size = UDim2.new(0, 20, 0, 20) } ):Play()
+                if callback then callback() end
+            end
+    end
+end)
+
+return FloatBtn
+end
+
+function SidebarAPI:SetToggleStyle(styleName)
+    self.ToggleStyle = styleName
+    for _, t in pairs(self.Toggles) do t.UpdateVisuals(false) end
+end
+
+function SidebarAPI:SetTheme(themeName)
+    local newT = ThemeLibrary[themeName]
+    if not newT then return end
+    Theme.BgColor = newT.Bg; Theme.ElementBg = newT.El; Theme.Accent = newT.Ac
+    local tInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quint)
+
+    for _, bg in ipairs(self.Backgrounds) do TweenService:Create(bg, tInfo, { BackgroundColor3 = Theme.BgColor } ):Play() end
+    for _, el in ipairs(self.ElementBackgrounds) do TweenService:Create(el, tInfo, { BackgroundColor3 = Theme.ElementBg } ):Play() end
+    for _, acc in ipairs(self.Accents) do TweenService:Create(acc, tInfo, { TextColor3 = Theme.Accent } ):Play() end
+    for _, sl in ipairs(self.Sliders) do
+        TweenService:Create(sl.Fill, tInfo, { BackgroundColor3 = Theme.Accent } ):Play()
+        TweenService:Create(sl.ValueLabel, tInfo, { TextColor3 = Theme.Accent } ):Play()
+        TweenService:Create(sl.Track, tInfo, { BackgroundColor3 = Theme.BgColor } ):Play()
+    end
+for _, tog in ipairs(self.Toggles) do tog.UpdateVisuals(false) end
+for _, tab in ipairs(self.Tabs) do
+    if tab.IsActive then TweenService:Create(tab.Indicator, tInfo, { BackgroundColor3 = Theme.Accent } ):Play() end
+end
+end
+
+SidebarAPI.UpdateLayout()
+return SidebarAPI
+end
+
+return Standard 
