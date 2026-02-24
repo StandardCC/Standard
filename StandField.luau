@@ -768,10 +768,7 @@ local dragBarCosmetic = dragBar and dragBar.Drag or nil
 local dragOffset = 255
 local dragOffsetMobile = 150
 
--- Custom sidebar/layout settings (set during CreateWindow)
-local SidebarWidth = 60         -- icon-only default; set to 150 for icon+text
-local UseSidebar = true         -- always true in this build
-local TabStyle = "IconOnly"     -- "IconOnly" | "IconAndText"
+-- Custom layout settings (set during CreateWindow)
 local CornerRadiusValue = 6     -- UICorner radius in pixels
 local WindowWidth = 620         -- total window width (wider than stock 500)
 
@@ -885,83 +882,6 @@ local function getAssetUri(id: any): string
 		warn("Rayfield | The icon argument must either be an icon ID (number) or a Lucide icon name (string)")
 	end
 	return assetUri
-end
-
--- ═══════════════════════════════════════════════════════════
--- SIDEBAR SETUP — converts the horizontal topbar tab list
--- into a vertical left sidebar.
--- ═══════════════════════════════════════════════════════════
-local function applySidebarLayout()
-	-- Resize Main to the wider window
-	local fullH = useMobileSizing and 320 or 520
-
-	-- Hide/repurpose the old Topbar tab strip area
-	-- TabList becomes a vertical sidebar panel on the left
-	TabList.Size = UDim2.new(0, SidebarWidth, 1, -45)  -- leave room for topbar height
-	TabList.Position = UDim2.new(0, 0, 0, 45)           -- below topbar
-	TabList.BackgroundTransparency = 0
-
-	-- Switch TabList layout to vertical
-	if TabList:FindFirstChildWhichIsA("UIListLayout") then
-		local ll = TabList:FindFirstChildWhichIsA("UIListLayout")
-		ll.FillDirection = Enum.FillDirection.Vertical
-		ll.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		ll.VerticalAlignment = Enum.VerticalAlignment.Top
-		ll.Padding = UDim.new(0, 4)
-		ll.SortOrder = Enum.SortOrder.LayoutOrder
-	end
-
-	-- Elements panel: offset to the right of the sidebar
-	Elements.Position = UDim2.new(0, SidebarWidth, 0, 45)
-	Elements.Size = UDim2.new(1, -SidebarWidth, 1, -45)
-
-	-- Apply corner radius to Main
-	local mainCorner = Main:FindFirstChildWhichIsA("UICorner")
-	if mainCorner then
-		mainCorner.CornerRadius = UDim.new(0, CornerRadiusValue)
-	end
-
-	-- Apply corner radius to Topbar
-	local topCorner = Topbar:FindFirstChildWhichIsA("UICorner")
-	if topCorner then
-		topCorner.CornerRadius = UDim.new(0, CornerRadiusValue)
-	end
-
-	-- Style the sidebar bg to match Topbar color
-	TabList.BackgroundColor3 = SelectedTheme.Topbar
-end
-
--- Resize a tab button for sidebar mode
-local function styleSidebarTab(TabButton, hasImage)
-	if TabStyle == "IconOnly" then
-		TabButton.Size = UDim2.new(1, -8, 0, SidebarWidth - 8)
-		TabButton.Title.Visible = false
-		-- Center the image
-		if TabButton:FindFirstChild("Image") then
-			TabButton.Image.Size = UDim2.new(0, 22, 0, 22)
-			TabButton.Image.Position = UDim2.new(0.5, -11, 0.5, -11)
-			TabButton.Image.AnchorPoint = Vector2.new(0, 0)
-		end
-	else -- IconAndText
-		TabButton.Size = UDim2.new(1, -8, 0, 36)
-		TabButton.Title.Visible = true
-		TabButton.Title.TextWrapped = false
-		TabButton.Title.Size = UDim2.new(1, -36, 1, 0)
-		TabButton.Title.Position = UDim2.new(0, 36, 0, 0)
-		TabButton.Title.AnchorPoint = Vector2.new(0, 0)
-		TabButton.Title.TextXAlignment = Enum.TextXAlignment.Left
-		TabButton.Title.TextSize = 13
-		if TabButton:FindFirstChild("Image") then
-			TabButton.Image.Size = UDim2.new(0, 18, 0, 18)
-			TabButton.Image.Position = UDim2.new(0, 8, 0.5, -9)
-			TabButton.Image.AnchorPoint = Vector2.new(0, 0)
-		end
-	end
-	-- Rounded sidebar buttons
-	local btnCorner = TabButton:FindFirstChildWhichIsA("UICorner")
-	if btnCorner then
-		btnCorner.CornerRadius = UDim.new(0, math.max(4, CornerRadiusValue - 2))
-	end
 end
 
 local function makeDraggable(object, dragObject, enableTaptic, tapticOffset)
@@ -1726,17 +1646,12 @@ function RayfieldLibrary:CreateWindow(Settings)
 	Topbar.Title.Text = Settings.Name
 
 	-- ── Custom layout settings ──────────────────────────────
-	if Settings.TabStyle then
-		TabStyle = Settings.TabStyle  -- "IconOnly" | "IconAndText"
-	end
 	if Settings.CornerRadius ~= nil then
 		CornerRadiusValue = Settings.CornerRadius
 	end
 	if Settings.WindowWidth then
 		WindowWidth = Settings.WindowWidth
 	end
-	-- Sidebar width: icon-only = 60, icon+text = 160
-	SidebarWidth = (TabStyle == "IconAndText") and 160 or 60
 
 	Main.Size = UDim2.new(0, 420, 0, 100)
 	Main.Visible = true
@@ -2093,6 +2008,14 @@ function RayfieldLibrary:CreateWindow(Settings)
 	Elements.UIPageLayout.FillDirection = Enum.FillDirection.Horizontal
 	TabList.Template.Visible = false
 
+	-- Apply corner radius
+	do
+		local mainCorner = Main:FindFirstChildWhichIsA("UICorner")
+		if mainCorner then mainCorner.CornerRadius = UDim.new(0, CornerRadiusValue) end
+		local topCorner = Topbar:FindFirstChildWhichIsA("UICorner")
+		if topCorner then topCorner.CornerRadius = UDim.new(0, CornerRadiusValue) end
+	end
+
 	-- Tab
 	local FirstTab = false
 	local Window = {}
@@ -2103,12 +2026,9 @@ function RayfieldLibrary:CreateWindow(Settings)
 		TabButton.Title.Text = Name
 		TabButton.Parent = TabList
 		TabButton.Title.TextWrapped = false
+		TabButton.Size = UDim2.new(0, TabButton.Title.TextBounds.X + 30, 0, 30)
 
-		-- Sidebar tab sizing handled by styleSidebarTab below
-		TabButton.Size = UDim2.new(1, -8, 0, 52)
-
-		local hasImage = Image and Image ~= 0
-		if hasImage then
+		if Image and Image ~= 0 then
 			if typeof(Image) == 'string' and Icons then
 				local asset = getIcon(Image)
 				TabButton.Image.Image = 'rbxassetid://'..asset.id
@@ -2117,11 +2037,12 @@ function RayfieldLibrary:CreateWindow(Settings)
 			else
 				TabButton.Image.Image = getAssetUri(Image)
 			end
+			TabButton.Title.AnchorPoint = Vector2.new(0, 0.5)
+			TabButton.Title.Position = UDim2.new(0, 37, 0.5, 0)
 			TabButton.Image.Visible = true
+			TabButton.Title.TextXAlignment = Enum.TextXAlignment.Left
+			TabButton.Size = UDim2.new(0, TabButton.Title.TextBounds.X + 52, 0, 30)
 		end
-
-		-- Apply sidebar-specific visual style
-		styleSidebarTab(TabButton, hasImage)
 
 
 
@@ -3631,9 +3552,6 @@ function RayfieldLibrary:CreateWindow(Settings)
 	task.wait(0.1)
 	TweenService:Create(Main, TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = useMobileSizing and UDim2.new(0, WindowWidth, 0, 320) or UDim2.new(0, WindowWidth, 0, 520)}):Play()
 	TweenService:Create(Main.Shadow.Image, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {ImageTransparency = 0.6}):Play()
-
-	-- Apply sidebar layout after window opens
-	applySidebarLayout()
 
 	Topbar.BackgroundTransparency = 1
 	Topbar.Divider.Size = UDim2.new(0, 0, 0, 1)
