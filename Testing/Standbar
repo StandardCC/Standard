@@ -85,7 +85,7 @@ function StandardTopBar:_buildGui()
     toggle.ZIndex = 9999
     toggle.AutoButtonColor = false
     toggle.Parent = sg
-    self._toggle = toggle
+    self._toggleBtn = toggle
 
     local tc = Instance.new("UICorner")
     tc.CornerRadius = UDim.new(1, 0)
@@ -173,7 +173,7 @@ function StandardTopBar:_buildGui()
 end
 
 function StandardTopBar:_setupDrag()
-    local toggle = self._toggle
+    local toggle = self._toggleBtn
     local frame = self._frame
     local cfg = self._cfg
     local dragStart, startPos
@@ -230,16 +230,14 @@ table.insert(self._connections, c3)
 end
 
 function StandardTopBar:_setupToggle()
-    local cfg = self._cfg
-
-    local c = self._toggle.MouseButton1Click:Connect(function()
+    local c = self._toggleBtn.MouseButton1Click:Connect(function()
             if self._dragging then return end
-            self:_toggle(not self._opened)
+            self:_setMenuOpen(not self._opened)
         end)
 table.insert(self._connections, c)
 end
 
-function StandardTopBar:_toggle(state)
+function StandardTopBar:_setMenuOpen(state)
     if self._animating then return end
     self._animating = true
     self._opened = state
@@ -287,7 +285,7 @@ function StandardTopBar:_setupOutsideClick()
             if not self._opened or self._animating or processed or self._dragging then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
-                self:_toggle(false)
+                self:_setMenuOpen(false)
             end
     end)
 table.insert(self._connections, c)
@@ -402,7 +400,7 @@ if self._cfg.onSelect then
     self._cfg.onSelect(item)
 end
 
-self:_toggle(false)
+self:_setMenuOpen(false)
 end)
 
 table.insert(self._items, item)
@@ -428,7 +426,7 @@ self:_updateCanvas()
 end
 
 function StandardTopBar:SetPosition(udim2)
-    self._toggle.Position = udim2
+    self._toggleBtn.Position = udim2
 end
 
 function StandardTopBar:SetLogo(assetId)
@@ -438,8 +436,8 @@ function StandardTopBar:SetLogo(assetId)
     end
 end
 
-function StandardTopBar:Open() self:_toggle(true) end
-function StandardTopBar:Close() self:_toggle(false) end
+function StandardTopBar:Open() self:_setMenuOpen(true) end
+function StandardTopBar:Close() self:_setMenuOpen(false) end
 
 function StandardTopBar:Destroy()
     for _, c in ipairs(self._connections) do c:Disconnect() end
