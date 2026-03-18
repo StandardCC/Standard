@@ -1,0 +1,452 @@
+local StandardTopBar = { }
+StandardTopBar.__index = StandardTopBar
+
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local Player = game.Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local DEFAULTS = {
+    logo = "rbxassetid://85140863077888",
+    closeIcon = "rbxassetid://121392148105762",
+    warningIcon = "rbxassetid://103524254370228",
+
+    minX = 0.05,
+    maxX = 0.95,
+
+    buttonSize = 44,
+    buttonColor = Color3.fromRGB(10, 10, 10),
+    buttonAlpha = 0.15,
+    frameColor = Color3.fromRGB(15, 15, 15),
+    frameAlpha = 0.08,
+    itemColor = Color3.fromRGB(40, 40, 40),
+    itemAlpha = 0.6,
+    frameWidth = 300,
+    frameHeight = 60,
+}
+
+local function tween(obj, info, props)
+    local t = TweenService:Create(obj, info, props)
+    t:Play()
+    return t
+end
+
+local function makeTweenInfo(t, style, dir)
+    return TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out)
+end
+
+function StandardTopBar.new(config)
+    config = config or { }
+    local self = setmetatable( { } , StandardTopBar)
+
+    self._cfg = setmetatable(config, { __index = DEFAULTS } )
+    self._opened = false
+    self._animating = false
+    self._dragging = false
+    self._items = { }
+    self._buttons = { }
+    self._connections = { }
+    self._loops = { }
+
+    self:_buildGui()
+    self:_setupDrag()
+    self:_setupToggle()
+    self:_setupOutsideClick()
+
+    for _, item in ipairs(config.items or { } ) do
+        self:AddItem(item)
+    end
+
+return self
+end
+
+function StandardTopBar:_buildGui()
+    local cfg = self._cfg
+
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "StandardTopBarGui"
+    sg.ResetOnSpawn = false
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    sg.DisplayOrder = 9999999
+    sg.IgnoreGuiInset = true
+
+    local ok = pcall(function() sg.Parent = CoreGui end)
+    if not ok then sg.Parent = PlayerGui end
+    self._sg = sg
+
+    local toggle = Instance.new("TextButton")
+    toggle.Name = "ToggleButton"
+    toggle.Size = UDim2.new(0, cfg.buttonSize, 0, cfg.buttonSize)
+    toggle.Position = UDim2.new(0.5, - cfg.buttonSize / 2, 0, 12)
+    toggle.BackgroundColor3 = cfg.buttonColor
+    toggle.BackgroundTransparency = cfg.buttonAlpha
+    toggle.Text = ""
+    toggle.ZIndex = 9999
+    toggle.AutoButtonColor = false
+    toggle.Parent = sg
+    self._toggle = toggle
+
+    local tc = Instance.new("UICorner")
+    tc.CornerRadius = UDim.new(1, 0)
+    tc.Parent = toggle
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Color = Color3.fromRGB(80, 80, 80)
+    stroke.Transparency = 0.6
+    stroke.Parent = toggle
+
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "Icon"
+    icon.Size = UDim2.new(0.78, 0, 0.78, 0)
+    icon.AnchorPoint = Vector2.new(0.5, 0.5)
+    icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    icon.BackgroundTransparency = 1
+    icon.Image = cfg.logo
+    icon.ScaleType = Enum.ScaleType.Fit
+    icon.ZIndex = 10000
+    icon.Parent = toggle
+    self._icon = icon
+
+    local dragHint = Instance.new("Frame")
+    dragHint.Name = "DragHint"
+    dragHint.Size = UDim2.new(0, 16, 0, 4)
+    dragHint.Position = UDim2.new(0.5, - 8, 1, 6)
+    dragHint.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+    dragHint.BackgroundTransparency = 0.6
+    dragHint.BorderSizePixel = 0
+    dragHint.ZIndex = 9999
+    dragHint.Parent = toggle
+
+    local dhc = Instance.new("UICorner")
+    dhc.CornerRadius = UDim.new(1, 0)
+    dhc.Parent = dragHint
+
+    local frame = Instance.new("Frame")
+    frame.Name = "MainFrame"
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.Position = UDim2.new(0.5, 0, 0, 65)
+    frame.AnchorPoint = Vector2.new(0.5, 0)
+    frame.BackgroundColor3 = cfg.frameColor
+    frame.BackgroundTransparency = cfg.frameAlpha
+    frame.Visible = false
+    frame.ClipsDescendants = true
+    frame.ZIndex = 9998
+    frame.Parent = sg
+    self._frame = frame
+
+    local fc = Instance.new("UICorner")
+    fc.CornerRadius = UDim.new(0, 12)
+    fc.Parent = frame
+
+    local fstroke = Instance.new("UIStroke")
+    fstroke.Thickness = 1
+    fstroke.Color = Color3.fromRGB(80, 80, 80)
+    fstroke.Transparency = 0.7
+    fstroke.Parent = frame
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = "Scroll"
+    scroll.Size = UDim2.new(1, - 12, 1, - 12)
+    scroll.Position = UDim2.new(0, 6, 0, 6)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollingDirection = Enum.ScrollingDirection.X
+    scroll.ScrollBarThickness = 2
+    scroll.BackgroundTransparency = 1
+    scroll.ZIndex = 9998
+    scroll.Parent = frame
+    self._scroll = scroll
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.Padding = UDim.new(0, 8)
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.Parent = scroll
+    self._layout = layout
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, 4)
+    padding.PaddingRight = UDim.new(0, 4)
+    padding.Parent = scroll
+end
+
+function StandardTopBar:_setupDrag()
+    local toggle = self._toggle
+    local frame = self._frame
+    local cfg = self._cfg
+    local dragStart, startPos
+
+    local function clampX(x)
+        local vp = workspace.CurrentCamera.ViewportSize
+        local half = cfg.buttonSize / 2
+        local minPx = vp.X * cfg.minX + half
+        local maxPx = vp.X * cfg.maxX - half
+        return math.clamp(x, minPx, maxPx)
+    end
+
+local function syncFrameX()
+
+    local vp = workspace.CurrentCamera.ViewportSize
+    local togglePx = toggle.Position.X.Offset
+    local scaleX = togglePx / vp.X
+    frame.Position = UDim2.new(scaleX + cfg.buttonSize / 2 / vp.X, 0, 0, 65)
+end
+
+local c1 = toggle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            self._dragging = true
+            dragStart = input.Position.X
+            startPos = toggle.Position
+        end
+end)
+
+local c2 = UserInputService.InputChanged:Connect(function(input)
+        if not self._dragging then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position.X - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local newX = clampX(startPos.X.Offset + delta)
+            toggle.Position = UDim2.new(0, newX, startPos.Y.Scale, startPos.Y.Offset)
+            syncFrameX()
+        end
+end)
+
+local c3 = UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            if self._dragging then
+                self._dragging = false
+            end
+    end
+end)
+
+table.insert(self._connections, c1)
+table.insert(self._connections, c2)
+table.insert(self._connections, c3)
+end
+
+function StandardTopBar:_setupToggle()
+    local cfg = self._cfg
+
+    local c = self._toggle.MouseButton1Click:Connect(function()
+            if self._dragging then return end
+            self:_toggle(not self._opened)
+        end)
+table.insert(self._connections, c)
+end
+
+function StandardTopBar:_toggle(state)
+    if self._animating then return end
+    self._animating = true
+    self._opened = state
+
+    local icon = self._icon
+    local frame = self._frame
+    local cfg = self._cfg
+
+    local shrink = tween(icon, makeTweenInfo(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        { Size = UDim2.new(0, 0, 0, 0), Rotation = 180 } )
+    shrink.Completed:Wait()
+
+    if state then
+        icon.Image = cfg.closeIcon
+        icon.Rotation = - 180
+        frame.Visible = true
+        task.spawn(function()
+                tween(frame, makeTweenInfo(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+                    { Size = UDim2.new(0, 50, 0, 50) } )
+                task.wait(0.18)
+                local itemCount = #self._items
+                local targetW = math.min(math.max(itemCount * 55, 120), cfg.frameWidth)
+                tween(frame, makeTweenInfo(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                    { Size = UDim2.new(0, targetW, 0, cfg.frameHeight) } )
+            end)
+else
+icon.Image = cfg.logo
+icon.Rotation = - 180
+task.spawn(function()
+        local t = tween(frame, makeTweenInfo(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+            { Size = UDim2.new(0, 0, 0, 0) } )
+        t.Completed:Wait()
+        frame.Visible = false
+    end)
+end
+
+tween(icon, makeTweenInfo(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    { Size = UDim2.new(0.78, 0, 0.78, 0), Rotation = 0 } )
+task.wait(0.28)
+self._animating = false
+end
+
+function StandardTopBar:_setupOutsideClick()
+    local c = UserInputService.InputBegan:Connect(function(input, processed)
+            if not self._opened or self._animating or processed or self._dragging then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+                self:_toggle(false)
+            end
+    end)
+table.insert(self._connections, c)
+end
+
+function StandardTopBar:_updateCanvas()
+    local count = #self._items
+    self._scroll.CanvasSize = UDim2.new(0, count * 55 + 8, 0, 0)
+end
+
+function StandardTopBar:AddItem(item)
+    assert(type(item) == "table" and item.Text, "StandardTopBar.AddItem: item must have a .Text field")
+
+    local cfg = self._cfg
+
+    local btn = Instance.new("ImageButton")
+    btn.Name = item.Text .. "Btn"
+    btn.Size = UDim2.new(0, 46, 0, 46)
+    btn.BackgroundColor3 = cfg.itemColor
+    btn.BackgroundTransparency = cfg.itemAlpha
+    btn.Image = item.Icon or ""
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 9998
+    btn.AutoButtonColor = false
+    btn.Parent = self._scroll
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Thickness = 1
+    btnStroke.Color = Color3.fromRGB(100, 100, 100)
+    btnStroke.Transparency = 0.75
+    btnStroke.Parent = btn
+
+    btn.MouseEnter:Connect(function()
+            tween(btn, makeTweenInfo(0.15), { BackgroundTransparency = 0.3 } )
+        end)
+btn.MouseLeave:Connect(function()
+        tween(btn, makeTweenInfo(0.15), { BackgroundTransparency = cfg.itemAlpha } )
+    end)
+
+local warn = Instance.new("ImageLabel")
+warn.Name = "Warning"
+warn.Size = UDim2.new(0, 16, 0, 16)
+warn.Position = UDim2.new(1, - 2, 0, 2)
+warn.AnchorPoint = Vector2.new(1, 0)
+warn.BackgroundTransparency = 1
+warn.Image = cfg.warningIcon
+warn.ZIndex = 10005
+warn.Visible = false
+warn.Parent = btn
+
+local tip = Instance.new("TextLabel")
+tip.Name = "Tooltip"
+tip.Text = item.Text
+tip.Size = UDim2.new(0, 0, 0, 20)
+tip.AutomaticSize = Enum.AutomaticSize.X
+tip.Position = UDim2.new(0.5, 0, 1, 5)
+tip.AnchorPoint = Vector2.new(0.5, 0)
+tip.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+tip.BackgroundTransparency = 0.1
+tip.TextColor3 = Color3.fromRGB(220, 220, 220)
+tip.TextSize = 11
+tip.Font = Enum.Font.GothamMedium
+tip.ZIndex = 10010
+tip.Visible = false
+tip.Parent = btn
+
+local tipCorner = Instance.new("UICorner")
+tipCorner.CornerRadius = UDim.new(0, 5)
+tipCorner.Parent = tip
+
+local tipPad = Instance.new("UIPadding")
+tipPad.PaddingLeft = UDim.new(0, 5)
+tipPad.PaddingRight = UDim.new(0, 5)
+tipPad.Parent = tip
+
+btn.MouseEnter:Connect(function() tip.Visible = true end)
+btn.MouseLeave:Connect(function() tip.Visible = false end)
+
+local loop = task.spawn(function()
+        while task.wait(1.5) do
+            local uiName = item.Text .. "UI"
+            local found = PlayerGui:FindFirstChild(uiName) or CoreGui:FindFirstChild(uiName)
+            warn.Visible = (found == nil)
+        end
+end)
+table.insert(self._loops, loop)
+
+btn.MouseButton1Click:Connect(function()
+        local uiName = item.Text .. "UI"
+        local target = PlayerGui:FindFirstChild(uiName) or CoreGui:FindFirstChild(uiName)
+
+        local validNames = { }
+        for _, it in ipairs(self._items) do validNames[it.Text .. "UI"] = true end
+        for _, v in pairs(PlayerGui:GetChildren()) do
+            if v:IsA("ScreenGui") and validNames[v.Name] and v.Name ~= uiName then
+                v.Enabled = false
+            end
+    end
+for _, v in pairs(CoreGui:GetChildren()) do
+    if v:IsA("ScreenGui") and validNames[v.Name] and v.Name ~= uiName then
+        v.Enabled = false
+    end
+end
+
+if target then target.Enabled = not target.Enabled end
+
+if self._cfg.onSelect then
+    self._cfg.onSelect(item)
+end
+
+self:_toggle(false)
+end)
+
+table.insert(self._items, item)
+table.insert(self._buttons, { item = item, btn = btn } )
+self:_updateCanvas()
+end
+
+function StandardTopBar:RemoveItem(text)
+    for i, entry in ipairs(self._buttons) do
+        if entry.item.Text == text then
+            entry.btn:Destroy()
+            table.remove(self._buttons, i)
+            break
+        end
+end
+for i, it in ipairs(self._items) do
+    if it.Text == text then
+        table.remove(self._items, i)
+        break
+    end
+end
+self:_updateCanvas()
+end
+
+function StandardTopBar:SetPosition(udim2)
+    self._toggle.Position = udim2
+end
+
+function StandardTopBar:SetLogo(assetId)
+    self._cfg.logo = assetId
+    if not self._opened then
+        self._icon.Image = assetId
+    end
+end
+
+function StandardTopBar:Open() self:_toggle(true) end
+function StandardTopBar:Close() self:_toggle(false) end
+
+function StandardTopBar:Destroy()
+    for _, c in ipairs(self._connections) do c:Disconnect() end
+    for _, l in ipairs(self._loops) do task.cancel(l) end
+    if self._sg and self._sg.Parent then self._sg:Destroy() end
+    self._connections = { }
+    self._loops = { }
+end
+
+return StandardTopBar
